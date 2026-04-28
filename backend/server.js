@@ -4,6 +4,7 @@ require("dotenv").config();
 
 const db = require("./config/db");
 const authRoutes = require("./routes/authRoutes");
+const verifyToken = require("./middleware/authMiddleware");
 
 const app = express();
 
@@ -13,7 +14,14 @@ app.use(express.json());
 app.use("/api/auth", authRoutes);
 
 app.get("/", (req, res) => {
-  res.send("Smart Campus API running...");
+  res.send("Smart Campus Event Management System API is running...");
+});
+
+app.get("/api/protected", verifyToken, (req, res) => {
+  res.json({
+    message: "Protected route accessed successfully",
+    user: req.user,
+  });
 });
 
 const PORT = process.env.PORT || 5000;
