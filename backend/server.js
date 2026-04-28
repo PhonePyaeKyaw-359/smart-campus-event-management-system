@@ -6,6 +6,7 @@ const db = require("./config/db");
 const authRoutes = require("./routes/authRoutes");
 const eventRoutes = require("./routes/eventRoutes");
 const registrationRoutes = require("./routes/registrationRoutes");
+const feedbackRoutes = require("./routes/feedbackRoutes");
 const verifyToken = require("./middleware/authMiddleware");
 const authorizeRoles = require("./middleware/roleMiddleware");
 
@@ -17,6 +18,7 @@ app.use(express.json());
 app.use("/api/auth", authRoutes);
 app.use("/api/events", eventRoutes);
 app.use("/api/registrations", registrationRoutes);
+app.use("/api/feedback", feedbackRoutes);
 
 app.get("/", (req, res) => {
   res.send("Smart Campus Event Management System API is running...");
