@@ -1,4 +1,5 @@
 const db = require("../config/db");
+const { createAuditLog } = require("../models/auditLogModel");
 
 const createEvent = (req, res) => {
   const { title, description, event_date, event_time, location, capacity } = req.body;
@@ -25,6 +26,14 @@ const createEvent = (req, res) => {
           error: err.message,
         });
       }
+
+      createAuditLog(
+        req.user.id,
+        "CREATE_EVENT",
+        `Created event: ${title}`,
+        "Event",
+        result.insertId
+      );
 
       res.status(201).json({
         message: "Event created successfully",
@@ -99,6 +108,14 @@ const updateEvent = (req, res) => {
         });
       }
 
+      createAuditLog(
+        req.user.id,
+        "UPDATE_EVENT",
+        `Updated event ID: ${id}`,
+        "Event",
+        id
+      );
+
       res.status(200).json({
         message: "Event updated successfully",
       });
@@ -124,6 +141,14 @@ const deleteEvent = (req, res) => {
         message: "Event not found",
       });
     }
+
+    createAuditLog(
+      req.user.id,
+      "DELETE_EVENT",
+      `Deleted event ID: ${id}`,
+      "Event",
+      id
+    );
 
     res.status(200).json({
       message: "Event deleted successfully",
