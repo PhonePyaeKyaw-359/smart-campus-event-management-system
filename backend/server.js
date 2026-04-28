@@ -5,6 +5,7 @@ require("dotenv").config();
 const db = require("./config/db");
 const authRoutes = require("./routes/authRoutes");
 const eventRoutes = require("./routes/eventRoutes");
+const registrationRoutes = require("./routes/registrationRoutes");
 const verifyToken = require("./middleware/authMiddleware");
 const authorizeRoles = require("./middleware/roleMiddleware");
 
@@ -15,6 +16,7 @@ app.use(express.json());
 
 app.use("/api/auth", authRoutes);
 app.use("/api/events", eventRoutes);
+app.use("/api/registrations", registrationRoutes);
 
 app.get("/", (req, res) => {
   res.send("Smart Campus Event Management System API is running...");
