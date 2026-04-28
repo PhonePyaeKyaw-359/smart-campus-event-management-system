@@ -3,14 +3,17 @@ const cors = require("cors");
 require("dotenv").config();
 
 const db = require("./config/db");
+const authRoutes = require("./routes/authRoutes");
 
 const app = express();
 
 app.use(cors());
 app.use(express.json());
 
+app.use("/api/auth", authRoutes);
+
 app.get("/", (req, res) => {
-  res.send("Smart Campus Event Management System API is running...");
+  res.send("Smart Campus API running...");
 });
 
 const PORT = process.env.PORT || 5000;
