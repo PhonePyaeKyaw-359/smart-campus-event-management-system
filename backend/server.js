@@ -5,6 +5,7 @@ require("dotenv").config();
 const db = require("./config/db");
 const authRoutes = require("./routes/authRoutes");
 const verifyToken = require("./middleware/authMiddleware");
+const authorizeRoles = require("./middleware/roleMiddleware");
 
 const app = express();
 
@@ -23,6 +24,34 @@ app.get("/api/protected", verifyToken, (req, res) => {
     user: req.user,
   });
 });
+
+app.get("/api/admin-only", verifyToken, authorizeRoles("admin"), (req, res) => {
+  res.json({
+    message: "Welcome Admin. You can access this route.",
+  });
+});
+
+app.get(
+  "/api/faculty-only",
+  verifyToken,
+  authorizeRoles("faculty", "admin"),
+  (req, res) => {
+    res.json({
+      message: "Welcome Faculty/Admin. You can access this route.",
+    });
+  }
+);
+
+app.get(
+  "/api/student-only",
+  verifyToken,
+  authorizeRoles("student", "faculty", "admin"),
+  (req, res) => {
+    res.json({
+      message: "Welcome authenticated user. You can access this route.",
+    });
+  }
+);
 
 const PORT = process.env.PORT || 5000;
 
