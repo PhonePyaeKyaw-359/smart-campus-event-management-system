@@ -21,6 +21,25 @@ const Events = () => {
     title: "", description: "", event_date: "", event_time: "", location: "", capacity: ""
   });
 
+  const [dateYear, setDateYear] = useState(new Date().getFullYear().toString());
+  const [dateMonth, setDateMonth] = useState("01");
+  const [dateDay, setDateDay] = useState("01");
+
+  const [timeHour, setTimeHour] = useState("12");
+  const [timeMin, setTimeMin] = useState("00");
+  const [timeAmPm, setTimeAmPm] = useState("AM");
+
+  useEffect(() => {
+    setForm(f => ({ ...f, event_date: `${dateYear}-${dateMonth.padStart(2, '0')}-${dateDay.padStart(2, '0')}` }));
+  }, [dateYear, dateMonth, dateDay]);
+
+  useEffect(() => {
+    let h = parseInt(timeHour, 10);
+    if (timeAmPm === "PM" && h !== 12) h += 12;
+    if (timeAmPm === "AM" && h === 12) h = 0;
+    setForm(f => ({ ...f, event_time: `${h.toString().padStart(2, '0')}:${timeMin.padStart(2, '0')}:00` }));
+  }, [timeHour, timeMin, timeAmPm]);
+
   const fetchEvents = async () => {
     try {
       const { data } = await API.get("/events");
@@ -37,6 +56,13 @@ const Events = () => {
   const openCreate = () => {
     setEditing(null);
     setForm({ title: "", description: "", event_date: "", event_time: "", location: "", capacity: "" });
+    const now = new Date();
+    setDateYear(now.getFullYear().toString());
+    setDateMonth((now.getMonth() + 1).toString().padStart(2, '0'));
+    setDateDay(now.getDate().toString().padStart(2, '0'));
+    setTimeHour("12");
+    setTimeMin("00");
+    setTimeAmPm("PM");
     setShowModal(true);
   };
 
@@ -50,6 +76,24 @@ const Events = () => {
       location: ev.location || "",
       capacity: ev.capacity || ""
     });
+
+    if (ev.event_date) {
+      const [y, m, d] = ev.event_date.split("T")[0].split("-");
+      if (y && m && d) {
+        setDateYear(y); setDateMonth(m); setDateDay(d);
+      }
+    }
+    if (ev.event_time) {
+      const [hStr, mStr] = ev.event_time.split(":");
+      let h = parseInt(hStr, 10);
+      const ampm = h >= 12 ? "PM" : "AM";
+      if (h > 12) h -= 12;
+      if (h === 0) h = 12;
+      setTimeHour(h.toString());
+      setTimeMin(mStr);
+      setTimeAmPm(ampm);
+    }
+    
     setShowModal(true);
   };
 
@@ -162,7 +206,11 @@ const Events = () => {
               <div key={ev.id} className={`event-card ${isCancelled ? "event-card--cancelled" : ""}`}>
                 <div className="event-card__header">
                   <h3 className="event-card__title">{ev.title}</h3>
-                  {ev.status && <span className={`badge badge--${ev.status}`}>{ev.status}</span>}
+                  {ev.status && (
+                    <span className={`badge badge--${ev.status}`}>
+                      {ev.status === 'pending' ? 'Pending Approval' : ev.status.charAt(0).toUpperCase() + ev.status.slice(1)}
+                    </span>
+                  )}
                 </div>
                 <p className="event-card__desc">{ev.description}</p>
                 <div className="event-card__meta">
@@ -189,7 +237,7 @@ const Events = () => {
                 )}
 
                 <div className="event-card__actions">
-                  {!isCancelled && (
+                  {ev.status === 'active' && (
                     alreadyRegistered ? (
                       <span className="btn btn--sm btn--registered" disabled>
                         <CheckCircle size={14} /> Registered
@@ -205,7 +253,7 @@ const Events = () => {
                     )
                   )}
 
-                  {alreadyRegistered && !isCancelled && (
+                  {alreadyRegistered && ev.status === 'active' && (
                     <button
                       className="btn btn--sm btn--outline"
                       onClick={() => { setShowFeedback(ev); setFeedbackForm({ rating: 5, comment: "" }); }}
@@ -249,13 +297,46 @@ const Events = () => {
                 <textarea className="form-input form-textarea" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
               </div>
               <div className="form-row">
-                <div className="form-group">
+                <div className="form-group" style={{ gridColumn: '1 / -1' }}>
                   <label className="form-label">Date</label>
-                  <input className="form-input" type="date" value={form.event_date} onChange={(e) => setForm({ ...form, event_date: e.target.value })} required />
+                  <div style={{ display: 'flex', gap: '0.5rem' }}>
+                    <select className="form-input" value={dateMonth} onChange={(e) => setDateMonth(e.target.value)}>
+                      {Array.from({length: 12}, (_, i) => i + 1).map(m => (
+                        <option key={m} value={m.toString().padStart(2, '0')}>{new Date(2000, m - 1, 1).toLocaleString('default', { month: 'long' })}</option>
+                      ))}
+                    </select>
+                    <select className="form-input" value={dateDay} onChange={(e) => setDateDay(e.target.value)}>
+                      {Array.from({length: 31}, (_, i) => i + 1).map(d => (
+                        <option key={d} value={d.toString().padStart(2, '0')}>{d}</option>
+                      ))}
+                    </select>
+                    <select className="form-input" value={dateYear} onChange={(e) => setDateYear(e.target.value)}>
+                      {[0, 1, 2, 3, 4].map(yOffset => {
+                        const y = new Date().getFullYear() + yOffset;
+                        return <option key={y} value={y}>{y}</option>;
+                      })}
+                    </select>
+                  </div>
                 </div>
-                <div className="form-group">
+                <div className="form-group" style={{ gridColumn: '1 / -1' }}>
                   <label className="form-label">Time</label>
-                  <input className="form-input" type="time" value={form.event_time} onChange={(e) => setForm({ ...form, event_time: e.target.value })} required />
+                  <div style={{ display: 'flex', gap: '0.5rem' }}>
+                    <select className="form-input" value={timeHour} onChange={(e) => setTimeHour(e.target.value)}>
+                      {Array.from({length: 12}, (_, i) => i + 1).map(h => (
+                        <option key={h} value={h}>{h}</option>
+                      ))}
+                    </select>
+                    <span style={{ display: 'flex', alignItems: 'center', fontWeight: 'bold' }}>:</span>
+                    <select className="form-input" value={timeMin} onChange={(e) => setTimeMin(e.target.value)}>
+                      {['00', '15', '30', '45'].map(m => (
+                        <option key={m} value={m}>{m}</option>
+                      ))}
+                    </select>
+                    <select className="form-input" value={timeAmPm} onChange={(e) => setTimeAmPm(e.target.value)}>
+                      <option value="AM">AM</option>
+                      <option value="PM">PM</option>
+                    </select>
+                  </div>
                 </div>
               </div>
               <div className="form-row">

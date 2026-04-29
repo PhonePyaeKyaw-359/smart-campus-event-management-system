@@ -6,7 +6,7 @@ import { useAuth } from "../context/AuthContext";
 
 const Onboarding = () => {
   const navigate = useNavigate();
-  const { user, updateUser } = useAuth();
+  const { user, login } = useAuth();
   
   const [organizations, setOrganizations] = useState([]);
   const [departments, setDepartments] = useState([]);
@@ -76,7 +76,7 @@ const Onboarding = () => {
         department_id: selectedDept || null
       });
 
-      updateUser(data.user);
+      login(data.user, data.token);
       navigate("/");
     } catch (err) {
       setError(err.response?.data?.message || "Failed to save profile setup.");

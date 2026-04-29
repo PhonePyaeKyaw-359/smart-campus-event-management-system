@@ -6,9 +6,10 @@ import toast from "react-hot-toast";
 
 const Approvals = () => {
   const { user, isAdmin, isFaculty } = useAuth();
-  const [activeTab, setActiveTab] = useState(isAdmin ? "users" : "registrations");
+  const [activeTab, setActiveTab] = useState(isAdmin ? "user" : "registration");
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [expandedCard, setExpandedCard] = useState(null);
 
   const fetchApprovals = async (type) => {
     setLoading(true);
@@ -34,7 +35,7 @@ const Approvals = () => {
         status,
         remarks: ""
       });
-      toast.success(`${activeTab.slice(0,-1)} ${status}`);
+      toast.success(`${activeTab} ${status}`);
       setItems(items.filter(item => item.id !== id));
     } catch (err) {
       toast.error(err.response?.data?.message || "Action failed");
@@ -52,14 +53,14 @@ const Approvals = () => {
         {isAdmin && (
           <>
             <button 
-              className={`btn ${activeTab === 'users' ? 'btn--primary' : 'btn--outline'}`}
-              onClick={() => setActiveTab('users')}
+              className={`btn ${activeTab === 'user' ? 'btn--primary' : 'btn--outline'}`}
+              onClick={() => setActiveTab('user')}
             >
               User Accounts
             </button>
             <button 
-              className={`btn ${activeTab === 'events' ? 'btn--primary' : 'btn--outline'}`}
-              onClick={() => setActiveTab('events')}
+              className={`btn ${activeTab === 'event' ? 'btn--primary' : 'btn--outline'}`}
+              onClick={() => setActiveTab('event')}
             >
               Events
             </button>
@@ -67,8 +68,8 @@ const Approvals = () => {
         )}
         {isFaculty && (
           <button 
-            className={`btn ${activeTab === 'registrations' ? 'btn--primary' : 'btn--outline'}`}
-            onClick={() => setActiveTab('registrations')}
+            className={`btn ${activeTab === 'registration' ? 'btn--primary' : 'btn--outline'}`}
+            onClick={() => setActiveTab('registration')}
           >
             Event Registrations
           </button>
@@ -83,55 +84,68 @@ const Approvals = () => {
           <p>No pending approvals at the moment.</p>
         </div>
       ) : (
-        <div className="data-table-container">
-          <table className="data-table">
-            <thead>
-              <tr>
-                {activeTab === 'users' && (
-                  <><th>Name</th><th>Email</th><th>Role</th><th>Action</th></>
-                )}
-                {activeTab === 'events' && (
-                  <><th>Event Title</th><th>Date</th><th>Creator</th><th>Action</th></>
-                )}
-                {activeTab === 'registrations' && (
-                  <><th>Student</th><th>Event</th><th>Date</th><th>Action</th></>
-                )}
-              </tr>
-            </thead>
-            <tbody>
-              {items.map(item => (
-                <tr key={item.id}>
-                  {activeTab === 'users' && (
-                    <>
-                      <td>{item.full_name}</td>
-                      <td>{item.email}</td>
-                      <td><span className={`status-badge status-badge--${item.role}`}>{item.role}</span></td>
-                    </>
-                  )}
-                  {activeTab === 'events' && (
-                    <>
-                      <td>{item.title}</td>
-                      <td>{new Date(item.event_date).toLocaleDateString()}</td>
-                      <td>{item.creator_name}</td>
-                    </>
-                  )}
-                  {activeTab === 'registrations' && (
-                    <>
-                      <td>{item.full_name} ({item.email})</td>
-                      <td>{item.event_title}</td>
-                      <td>{new Date(item.registered_at).toLocaleDateString()}</td>
-                    </>
-                  )}
-                  <td>
-                    <div style={{display: 'flex', gap: '0.5rem'}}>
-                      <button onClick={() => handleApproveAction(item.id, 'approved')} className="btn" style={{backgroundColor: 'var(--accent-emerald)', color: '#fff', padding: '0.3rem 0.5rem'}}><Check size={16} /></button>
-                      <button onClick={() => handleApproveAction(item.id, 'rejected')} className="btn" style={{backgroundColor: 'var(--accent-rose)', color: '#fff', padding: '0.3rem 0.5rem'}}><X size={16} /></button>
+        <div className="events-grid">
+          {items.map(item => (
+            <div key={item.id} className="card" style={{ display: 'flex', flexDirection: 'column', padding: '1.25rem' }}>
+              <div style={{ flex: 1, marginBottom: '1rem' }}>
+                {activeTab === 'user' && (
+                  <>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.5rem' }}>
+                      <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-primary)' }}>{item.full_name}</h3>
+                      <span className={`badge badge--${item.role}`}>{item.role}</span>
                     </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                    <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>{item.email}</p>
+                  </>
+                )}
+                {activeTab === 'event' && (
+                  <>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem' }}>
+                      <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-primary)' }}>{item.title}</h3>
+                      <span className="badge badge--pending">Event</span>
+                    </div>
+                    <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: '0.35rem' }}>
+                      <strong style={{ color: 'var(--text-primary)' }}>Creator:</strong> {item.creator_name}
+                    </p>
+                    <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: '0.5rem' }}>
+                      <strong style={{ color: 'var(--text-primary)' }}>Date:</strong> {new Date(item.event_date).toLocaleDateString()}
+                    </p>
+                    {expandedCard === item.id ? (
+                      <div style={{ background: 'var(--bg-primary)', padding: '0.75rem', borderRadius: 'var(--radius-sm)', marginTop: '0.5rem', fontSize: '0.85rem' }}>
+                        <p style={{ marginBottom: '0.3rem' }}><strong style={{ color: 'var(--text-primary)' }}>Time:</strong> {item.event_time}</p>
+                        <p style={{ marginBottom: '0.3rem' }}><strong style={{ color: 'var(--text-primary)' }}>Location:</strong> {item.location}</p>
+                        <p style={{ marginBottom: '0.3rem' }}><strong style={{ color: 'var(--text-primary)' }}>Capacity:</strong> {item.capacity}</p>
+                        <p style={{ marginTop: '0.5rem' }}>{item.description}</p>
+                        <button onClick={() => setExpandedCard(null)} className="btn btn--sm btn--ghost" style={{ marginTop: '0.5rem', width: '100%', padding: '0.2rem' }}>Hide Details</button>
+                      </div>
+                    ) : (
+                      <button onClick={() => setExpandedCard(item.id)} className="btn btn--sm btn--outline" style={{ marginTop: '0.5rem', width: '100%' }}>View Full Details</button>
+                    )}
+                  </>
+                )}
+                {activeTab === 'registration' && (
+                  <>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem' }}>
+                      <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-primary)' }}>{item.full_name}</h3>
+                      <span className="badge badge--pending">Registration</span>
+                    </div>
+                    <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: '0.35rem' }}>
+                      <strong style={{ color: 'var(--text-primary)' }}>Email:</strong> {item.email}
+                    </p>
+                    <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: '0.35rem' }}>
+                      <strong style={{ color: 'var(--text-primary)' }}>Event:</strong> {item.event_title}
+                    </p>
+                    <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
+                      <strong style={{ color: 'var(--text-primary)' }}>Date:</strong> {new Date(item.registered_at).toLocaleDateString()}
+                    </p>
+                  </>
+                )}
+              </div>
+              <div style={{ display: 'flex', gap: '0.75rem', borderTop: '1px solid var(--border)', paddingTop: '1rem' }}>
+                <button onClick={() => handleApproveAction(item.id, 'approved')} className="btn btn--sm btn--full" style={{backgroundColor: '#10b981', color: '#fff'}}>Approve</button>
+                <button onClick={() => handleApproveAction(item.id, 'rejected')} className="btn btn--sm btn--full" style={{backgroundColor: '#f43f5e', color: '#fff'}}>Reject</button>
+              </div>
+            </div>
+          ))}
         </div>
       )}
     </div>
