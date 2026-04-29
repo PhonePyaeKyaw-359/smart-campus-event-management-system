@@ -9,8 +9,11 @@ const registrationRoutes = require("./routes/registrationRoutes");
 const feedbackRoutes = require("./routes/feedbackRoutes");
 const auditRoutes = require("./routes/auditRoutes");
 const resourceRoutes = require("./routes/resourceRoutes");
+const organizationRoutes = require("./routes/organizationRoutes");
+const approvalRoutes = require("./routes/approvalRoutes");
 const notificationRoutes = require("./routes/notificationRoutes");
 const reportRoutes = require("./routes/reportRoutes");
+const userRoutes = require("./routes/userRoutes");
 
 const app = express();
 
@@ -25,6 +28,9 @@ app.use("/api/audit-logs", auditRoutes);
 app.use("/api/resources", resourceRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/reports", reportRoutes);
+app.use("/api/users", userRoutes);
+app.use("/api/organizations", organizationRoutes);
+app.use("/api/approvals", approvalRoutes);
 
 app.get("/", (req, res) => {
   res.send("Smart Campus Event Management System API is running...");

@@ -10,6 +10,7 @@ const TYPES = ["room", "equipment", "other"];
 const Resources = () => {
   const { isAdmin } = useAuth();
   const [resources, setResources] = useState([]);
+  const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState(null);
@@ -30,7 +31,20 @@ const Resources = () => {
     }
   };
 
-  useEffect(() => { fetchResources(); }, []);
+  // Fetch events for the assign dropdown
+  const fetchEvents = async () => {
+    try {
+      const { data } = await API.get("/events");
+      setEvents(data.filter((e) => e.status === "active"));
+    } catch {
+      // silently ignore
+    }
+  };
+
+  useEffect(() => {
+    fetchResources();
+    fetchEvents();
+  }, []);
 
   const openCreate = () => {
     setEditing(null);
@@ -81,7 +95,9 @@ const Resources = () => {
     e.preventDefault();
     try {
       await API.post("/resources/assign", assignForm);
-      toast.success("Resource assigned to event");
+      const resource = resources.find((r) => String(r.id) === String(assignForm.resource_id));
+      const event = events.find((ev) => String(ev.id) === String(assignForm.event_id));
+      toast.success(`"${resource?.name}" assigned to "${event?.title}"`);
       setShowAssign(false);
       setAssignForm({ resource_id: "", event_id: "" });
     } catch (err) {
@@ -200,7 +216,7 @@ const Resources = () => {
         </div>
       )}
 
-      {/* Assign Modal */}
+      {/* Assign Modal — uses real dropdowns */}
       {showAssign && (
         <div className="modal-backdrop" onClick={() => setShowAssign(false)}>
           <div className="modal modal--sm" onClick={(e) => e.stopPropagation()}>
@@ -210,12 +226,36 @@ const Resources = () => {
             </div>
             <form className="modal__body" onSubmit={handleAssign}>
               <div className="form-group">
-                <label className="form-label">Resource ID</label>
-                <input className="form-input" type="number" value={assignForm.resource_id} onChange={(e) => setAssignForm({ ...assignForm, resource_id: e.target.value })} required />
+                <label className="form-label">Resource</label>
+                <select
+                  className="form-input"
+                  value={assignForm.resource_id}
+                  onChange={(e) => setAssignForm({ ...assignForm, resource_id: e.target.value })}
+                  required
+                >
+                  <option value="">— Select a resource —</option>
+                  {resources.map((r) => (
+                    <option key={r.id} value={r.id}>
+                      {r.name} ({r.type}) — {r.availability_status}
+                    </option>
+                  ))}
+                </select>
               </div>
               <div className="form-group">
-                <label className="form-label">Event ID</label>
-                <input className="form-input" type="number" value={assignForm.event_id} onChange={(e) => setAssignForm({ ...assignForm, event_id: e.target.value })} required />
+                <label className="form-label">Event</label>
+                <select
+                  className="form-input"
+                  value={assignForm.event_id}
+                  onChange={(e) => setAssignForm({ ...assignForm, event_id: e.target.value })}
+                  required
+                >
+                  <option value="">— Select an event —</option>
+                  {events.map((ev) => (
+                    <option key={ev.id} value={ev.id}>
+                      {ev.title} {ev.event_date ? `(${new Date(ev.event_date).toLocaleDateString()})` : ""}
+                    </option>
+                  ))}
+                </select>
               </div>
               <div className="modal__footer">
                 <button type="button" className="btn btn--outline" onClick={() => setShowAssign(false)}>Cancel</button>

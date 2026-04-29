@@ -51,7 +51,7 @@ const Login = () => {
                 id="login-email"
                 type="email"
                 className="form-input"
-                placeholder="you@campus.edu"
+                placeholder="you@gmail.com"
                 value={form.email}
                 onChange={(e) => setForm({ ...form, email: e.target.value })}
                 required

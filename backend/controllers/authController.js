@@ -2,7 +2,6 @@ const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const db = require("../config/db");
 
-// Register User
 const registerUser = async (req, res) => {
   const { full_name, email, password, role } = req.body;
 
@@ -15,9 +14,8 @@ const registerUser = async (req, res) => {
   try {
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    const userRole = ["student", "faculty", "admin"].includes(role)
-      ? role
-      : "student";
+    const validRoles = ["student", "faculty", "admin"];
+    const userRole = validRoles.includes(role) ? role : "student";
 
     const sql = `
       INSERT INTO users (full_name, email, password, role)
@@ -38,9 +36,31 @@ const registerUser = async (req, res) => {
         });
       }
 
+      const token = jwt.sign(
+        {
+          id: result.insertId,
+          role: userRole,
+          organization_id: null,
+          department_id: null
+        },
+        process.env.JWT_SECRET,
+        {
+          expiresIn: "1d",
+        }
+      );
+
       return res.status(201).json({
         message: "User registered successfully",
-        userId: result.insertId,
+        token,
+        user: {
+          id: result.insertId,
+          full_name,
+          email,
+          role: userRole,
+          status: 'active',
+          organization_id: null,
+          department_id: null
+        },
       });
     });
   } catch (error) {
@@ -51,7 +71,6 @@ const registerUser = async (req, res) => {
   }
 };
 
-// Login User
 const loginUser = (req, res) => {
   const { email, password } = req.body;
 
@@ -94,10 +113,18 @@ const loginUser = (req, res) => {
         });
       }
 
+      if (user.status === 'pending_approval') {
+        return res.status(403).json({
+          message: "Your account is pending admin approval.",
+        });
+      }
+
       const token = jwt.sign(
         {
           id: user.id,
           role: user.role,
+          organization_id: user.organization_id,
+          department_id: user.department_id
         },
         process.env.JWT_SECRET,
         {
@@ -113,6 +140,9 @@ const loginUser = (req, res) => {
           full_name: user.full_name,
           email: user.email,
           role: user.role,
+          status: user.status,
+          organization_id: user.organization_id,
+          department_id: user.department_id
         },
       });
     } catch (error) {

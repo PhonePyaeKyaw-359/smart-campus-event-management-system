@@ -76,7 +76,7 @@ const registerForEvent = (req, res) => {
         }
 
         res.status(201).json({
-          message: "Registered for event successfully",
+          message: "Registration submitted and pending faculty approval",
           registrationId: result.insertId,
         });
       });

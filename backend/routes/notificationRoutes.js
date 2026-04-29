@@ -8,6 +8,7 @@ const {
   createNotification,
   getMyNotifications,
   markNotificationAsRead,
+  markAllNotificationsAsRead,
 } = require("../controllers/notificationController");
 
 router.post(
@@ -19,6 +20,8 @@ router.post(
 
 router.get("/my", verifyToken, getMyNotifications);
 
+router.put("/read-all", verifyToken, markAllNotificationsAsRead);
+
 router.put("/:id/read", verifyToken, markNotificationAsRead);
 
-module.exports = router;
+module.exports = router;

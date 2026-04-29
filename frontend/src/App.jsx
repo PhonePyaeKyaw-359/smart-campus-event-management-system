@@ -6,6 +6,7 @@ import Layout from "./components/Layout";
 
 import Login from "./pages/Login";
 import Register from "./pages/Register";
+import Onboarding from "./pages/Onboarding";
 import Dashboard from "./pages/Dashboard";
 import Events from "./pages/Events";
 import MyRegistrations from "./pages/MyRegistrations";
@@ -14,6 +15,8 @@ import Resources from "./pages/Resources";
 import Reports from "./pages/Reports";
 import FeedbackAdmin from "./pages/FeedbackAdmin";
 import AuditLogs from "./pages/AuditLogs";
+import UserManagement from "./pages/UserManagement";
+import Approvals from "./pages/Approvals";
 
 const App = () => {
   return (
@@ -36,17 +39,20 @@ const App = () => {
           <Route path="/register" element={<Register />} />
 
           {/* Protected — all roles */}
+          <Route path="/onboarding" element={<ProtectedRoute allowUnonboarded={true}><Onboarding /></ProtectedRoute>} />
           <Route path="/dashboard" element={<ProtectedRoute><Layout><Dashboard /></Layout></ProtectedRoute>} />
           <Route path="/events" element={<ProtectedRoute><Layout><Events /></Layout></ProtectedRoute>} />
           <Route path="/my-registrations" element={<ProtectedRoute><Layout><MyRegistrations /></Layout></ProtectedRoute>} />
           <Route path="/notifications" element={<ProtectedRoute><Layout><Notifications /></Layout></ProtectedRoute>} />
 
           {/* Faculty + Admin */}
+          <Route path="/approvals" element={<ProtectedRoute roles={["faculty","admin"]}><Layout><Approvals /></Layout></ProtectedRoute>} />
           <Route path="/resources" element={<ProtectedRoute roles={["faculty","admin"]}><Layout><Resources /></Layout></ProtectedRoute>} />
           <Route path="/reports" element={<ProtectedRoute roles={["faculty","admin"]}><Layout><Reports /></Layout></ProtectedRoute>} />
           <Route path="/feedback-admin" element={<ProtectedRoute roles={["faculty","admin"]}><Layout><FeedbackAdmin /></Layout></ProtectedRoute>} />
 
           {/* Admin only */}
+          <Route path="/users" element={<ProtectedRoute roles={["admin"]}><Layout><UserManagement /></Layout></ProtectedRoute>} />
           <Route path="/audit-logs" element={<ProtectedRoute roles={["admin"]}><Layout><AuditLogs /></Layout></ProtectedRoute>} />
 
           {/* Fallback */}

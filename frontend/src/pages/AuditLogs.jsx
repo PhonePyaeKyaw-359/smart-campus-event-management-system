@@ -58,7 +58,7 @@ const AuditLogs = () => {
                   <td>
                     <span className="badge badge--info">{log.action}</span>
                   </td>
-                  <td className="td--truncate">{log.details || "—"}</td>
+                  <td className="td--truncate">{log.description || "—"}</td>
                   <td>{new Date(log.created_at).toLocaleString()}</td>
                 </tr>
               ))}

@@ -4,7 +4,7 @@ import { useAuth } from "../context/AuthContext";
 import Spinner from "../components/Spinner";
 import toast from "react-hot-toast";
 import {
-  Calendar, MapPin, Clock, Search, Plus, Edit2, Trash2, X, Users, Star
+  Calendar, MapPin, Clock, Search, Plus, Edit2, Trash2, X, Users, Star, CheckCircle
 } from "lucide-react";
 
 const Events = () => {
@@ -16,6 +16,7 @@ const Events = () => {
   const [editing, setEditing] = useState(null);
   const [showFeedback, setShowFeedback] = useState(null);
   const [feedbackForm, setFeedbackForm] = useState({ rating: 5, comment: "" });
+  const [registeringId, setRegisteringId] = useState(null);
   const [form, setForm] = useState({
     title: "", description: "", event_date: "", event_time: "", location: "", capacity: ""
   });
@@ -60,7 +61,7 @@ const Events = () => {
         toast.success("Event updated");
       } else {
         await API.post("/events", form);
-        toast.success("Event created");
+        toast.success("Event created! A notification has been sent to all users.");
       }
       setShowModal(false);
       fetchEvents();
@@ -81,11 +82,22 @@ const Events = () => {
   };
 
   const handleRegister = async (eventId) => {
+    setRegisteringId(eventId);
     try {
       await API.post("/registrations", { event_id: eventId });
       toast.success("Registered successfully!");
+      // Optimistically update local state — no need to refetch
+      setEvents((prev) =>
+        prev.map((ev) =>
+          ev.id === eventId
+            ? { ...ev, user_registered: 1, registered_count: (ev.registered_count || 0) + 1 }
+            : ev
+        )
+      );
     } catch (err) {
       toast.error(err.response?.data?.message || "Registration failed");
+    } finally {
+      setRegisteringId(null);
     }
   };
 
@@ -93,7 +105,7 @@ const Events = () => {
     e.preventDefault();
     try {
       await API.post("/feedback", { event_id: showFeedback.id, ...feedbackForm });
-      toast.success("Feedback submitted!");
+      toast.success("Feedback submitted! Thank you.");
       setShowFeedback(null);
       setFeedbackForm({ rating: 5, comment: "" });
     } catch (err) {
@@ -140,39 +152,82 @@ const Events = () => {
         </div>
       ) : (
         <div className="events-grid">
-          {filtered.map((ev) => (
-            <div key={ev.id} className="event-card">
-              <div className="event-card__header">
-                <h3 className="event-card__title">{ev.title}</h3>
-                {ev.status && <span className={`badge badge--${ev.status}`}>{ev.status}</span>}
-              </div>
-              <p className="event-card__desc">{ev.description}</p>
-              <div className="event-card__meta">
-                <span><Calendar size={14} /> {ev.event_date ? new Date(ev.event_date).toLocaleDateString() : "TBD"}</span>
-                <span><Clock size={14} /> {ev.event_time || "TBD"}</span>
-                <span><MapPin size={14} /> {ev.location || "TBD"}</span>
-                {ev.capacity && <span><Users size={14} /> Max {ev.capacity}</span>}
-              </div>
-              <div className="event-card__actions">
-                <button className="btn btn--sm btn--accent" onClick={() => handleRegister(ev.id)}>
-                  Register
-                </button>
-                <button className="btn btn--sm btn--outline" onClick={() => { setShowFeedback(ev); setFeedbackForm({ rating: 5, comment: "" }); }}>
-                  <Star size={14} /> Feedback
-                </button>
-                {isAdminOrFaculty && (
-                  <>
-                    <button className="btn btn--sm btn--ghost" onClick={() => openEdit(ev)}>
-                      <Edit2 size={14} />
-                    </button>
-                    <button className="btn btn--sm btn--danger-ghost" onClick={() => handleDelete(ev.id)}>
-                      <Trash2 size={14} />
-                    </button>
-                  </>
+          {filtered.map((ev) => {
+            const isFull = ev.registered_count >= ev.capacity;
+            const isCancelled = ev.status === "cancelled";
+            const alreadyRegistered = !!ev.user_registered;
+            const fillPercent = ev.capacity ? Math.min(100, Math.round((ev.registered_count / ev.capacity) * 100)) : 0;
+
+            return (
+              <div key={ev.id} className={`event-card ${isCancelled ? "event-card--cancelled" : ""}`}>
+                <div className="event-card__header">
+                  <h3 className="event-card__title">{ev.title}</h3>
+                  {ev.status && <span className={`badge badge--${ev.status}`}>{ev.status}</span>}
+                </div>
+                <p className="event-card__desc">{ev.description}</p>
+                <div className="event-card__meta">
+                  <span><Calendar size={14} /> {ev.event_date ? new Date(ev.event_date).toLocaleDateString() : "TBD"}</span>
+                  <span><Clock size={14} /> {ev.event_time || "TBD"}</span>
+                  <span><MapPin size={14} /> {ev.location || "TBD"}</span>
+                </div>
+
+                {/* Capacity Progress Bar */}
+                {ev.capacity && (
+                  <div className="event-card__capacity">
+                    <div className="capacity-bar">
+                      <div
+                        className={`capacity-bar__fill ${isFull ? "capacity-bar__fill--full" : ""}`}
+                        style={{ width: `${fillPercent}%` }}
+                      />
+                    </div>
+                    <span className="capacity-bar__label">
+                      <Users size={13} />
+                      {ev.registered_count}/{ev.capacity} spots
+                      {isFull && <span className="capacity-bar__full-tag"> · Full</span>}
+                    </span>
+                  </div>
                 )}
+
+                <div className="event-card__actions">
+                  {!isCancelled && (
+                    alreadyRegistered ? (
+                      <span className="btn btn--sm btn--registered" disabled>
+                        <CheckCircle size={14} /> Registered
+                      </span>
+                    ) : (
+                      <button
+                        className="btn btn--sm btn--accent"
+                        onClick={() => handleRegister(ev.id)}
+                        disabled={isFull || registeringId === ev.id}
+                      >
+                        {registeringId === ev.id ? "Registering..." : isFull ? "Full" : "Register"}
+                      </button>
+                    )
+                  )}
+
+                  {alreadyRegistered && !isCancelled && (
+                    <button
+                      className="btn btn--sm btn--outline"
+                      onClick={() => { setShowFeedback(ev); setFeedbackForm({ rating: 5, comment: "" }); }}
+                    >
+                      <Star size={14} /> Feedback
+                    </button>
+                  )}
+
+                  {isAdminOrFaculty && (
+                    <>
+                      <button className="btn btn--sm btn--ghost" onClick={() => openEdit(ev)}>
+                        <Edit2 size={14} />
+                      </button>
+                      <button className="btn btn--sm btn--danger-ghost" onClick={() => handleDelete(ev.id)}>
+                        <Trash2 size={14} />
+                      </button>
+                    </>
+                  )}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
@@ -213,6 +268,15 @@ const Events = () => {
                   <input className="form-input" type="number" value={form.capacity} onChange={(e) => setForm({ ...form, capacity: e.target.value })} required />
                 </div>
               </div>
+              {editing && (
+                <div className="form-group">
+                  <label className="form-label">Status</label>
+                  <select className="form-input" value={form.status || "active"} onChange={(e) => setForm({ ...form, status: e.target.value })}>
+                    <option value="active">Active</option>
+                    <option value="cancelled">Cancelled</option>
+                  </select>
+                </div>
+              )}
               <div className="modal__footer">
                 <button type="button" className="btn btn--outline" onClick={() => setShowModal(false)}>Cancel</button>
                 <button type="submit" className="btn btn--primary">{editing ? "Update" : "Create"}</button>

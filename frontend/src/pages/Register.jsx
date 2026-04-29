@@ -1,10 +1,12 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
 import API from "../api/axios";
 import toast from "react-hot-toast";
 import { GraduationCap, User, Mail, Lock } from "lucide-react";
 
 const Register = () => {
+  const { login } = useAuth();
   const navigate = useNavigate();
   const [form, setForm] = useState({ full_name: "", email: "", password: "", role: "student" });
   const [loading, setLoading] = useState(false);
@@ -13,9 +15,11 @@ const Register = () => {
     e.preventDefault();
     setLoading(true);
     try {
-      await API.post("/auth/register", form);
-      toast.success("Account created! Please log in.");
-      navigate("/login");
+      const { data } = await API.post("/auth/register", form);
+      const userData = { ...data.user, name: data.user.full_name || data.user.name };
+      login(userData, data.token);
+      toast.success("Account created! You are now logged in.");
+      navigate("/dashboard");
     } catch (err) {
       toast.error(err.response?.data?.message || "Registration failed");
     } finally {
@@ -62,7 +66,7 @@ const Register = () => {
                 id="reg-email"
                 type="email"
                 className="form-input"
-                placeholder="you@campus.edu"
+                placeholder="you@gmail.com"
                 value={form.email}
                 onChange={(e) => setForm({ ...form, email: e.target.value })}
                 required

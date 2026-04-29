@@ -90,8 +90,32 @@ const markNotificationAsRead = (req, res) => {
   });
 };
 
+const markAllNotificationsAsRead = (req, res) => {
+  const user_id = req.user.id;
+
+  const sql = `
+    UPDATE notifications
+    SET is_read = TRUE
+    WHERE (user_id = ? OR user_id IS NULL) AND is_read = FALSE
+  `;
+
+  db.query(sql, [user_id], (err) => {
+    if (err) {
+      return res.status(500).json({
+        message: "Database error",
+        error: err.message,
+      });
+    }
+
+    res.status(200).json({
+      message: "All notifications marked as read",
+    });
+  });
+};
+
 module.exports = {
   createNotification,
   getMyNotifications,
   markNotificationAsRead,
+  markAllNotificationsAsRead,
 };

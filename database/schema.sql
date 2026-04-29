@@ -2,17 +2,39 @@ CREATE DATABASE IF NOT EXISTS smart_campus_db;
 
 USE smart_campus_db;
 
+CREATE TABLE IF NOT EXISTS organizations (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  name VARCHAR(150) NOT NULL UNIQUE,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS departments (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  organization_id INT NOT NULL,
+  name VARCHAR(150) NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE,
+  UNIQUE KEY unique_dept_org (organization_id, name)
+);
+
 CREATE TABLE IF NOT EXISTS users (
   id INT AUTO_INCREMENT PRIMARY KEY,
   full_name VARCHAR(100) NOT NULL,
   email VARCHAR(100) NOT NULL UNIQUE,
   password VARCHAR(255) NOT NULL,
   role ENUM('student', 'faculty', 'admin') DEFAULT 'student',
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  status ENUM('active', 'pending_approval') DEFAULT 'active',
+  organization_id INT,
+  department_id INT,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE SET NULL,
+  FOREIGN KEY (department_id) REFERENCES departments(id) ON DELETE SET NULL
 );
 
 CREATE TABLE IF NOT EXISTS events (
   id INT AUTO_INCREMENT PRIMARY KEY,
+  organization_id INT NOT NULL,
+  department_id INT,
   title VARCHAR(150) NOT NULL,
   description TEXT,
   event_date DATE NOT NULL,
@@ -20,8 +42,10 @@ CREATE TABLE IF NOT EXISTS events (
   location VARCHAR(150) NOT NULL,
   capacity INT NOT NULL,
   created_by INT,
-  status ENUM('active', 'cancelled') DEFAULT 'active',
+  status ENUM('pending', 'active', 'cancelled', 'rejected') DEFAULT 'pending',
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE,
+  FOREIGN KEY (department_id) REFERENCES departments(id) ON DELETE SET NULL,
   FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL
 );
 
@@ -29,8 +53,8 @@ CREATE TABLE IF NOT EXISTS registrations (
   id INT AUTO_INCREMENT PRIMARY KEY,
   user_id INT NOT NULL,
   event_id INT NOT NULL,
+  status ENUM('pending', 'registered', 'cancelled', 'rejected') DEFAULT 'pending',
   registered_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  status ENUM('registered', 'cancelled') DEFAULT 'registered',
   UNIQUE KEY unique_registration (user_id, event_id),
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
   FOREIGN KEY (event_id) REFERENCES events(id) ON DELETE CASCADE
@@ -60,11 +84,13 @@ CREATE TABLE IF NOT EXISTS audit_logs (
 
 CREATE TABLE IF NOT EXISTS resources (
   id INT AUTO_INCREMENT PRIMARY KEY,
+  organization_id INT NOT NULL,
   name VARCHAR(100) NOT NULL,
   type ENUM('room', 'equipment', 'other') NOT NULL,
   description TEXT,
   availability_status ENUM('available', 'unavailable') DEFAULT 'available',
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS event_resources (
@@ -85,4 +111,18 @@ CREATE TABLE IF NOT EXISTS notifications (
   is_read BOOLEAN DEFAULT FALSE,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS approvals (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  type ENUM('event', 'registration', 'user') NOT NULL,
+  target_id INT NOT NULL,
+  requested_by INT,
+  approved_by INT,
+  status ENUM('pending', 'approved', 'rejected') DEFAULT 'pending',
+  remarks TEXT,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  FOREIGN KEY (requested_by) REFERENCES users(id) ON DELETE SET NULL,
+  FOREIGN KEY (approved_by) REFERENCES users(id) ON DELETE SET NULL
 );

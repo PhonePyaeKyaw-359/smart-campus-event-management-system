@@ -4,7 +4,7 @@ import { useAuth } from "../context/AuthContext";
 import Spinner from "../components/Spinner";
 import {
   BarChart2, Calendar, ClipboardList, Users,
-  TrendingUp, Bell, Star, Activity
+  TrendingUp, Bell, Star, Activity, BookOpen
 } from "lucide-react";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
@@ -31,6 +31,8 @@ const Dashboard = () => {
   const [attendance, setAttendance] = useState([]);
   const [feedbackReport, setFeedbackReport] = useState([]);
   const [notifications, setNotifications] = useState([]);
+  // Student-specific stats
+  const [studentStats, setStudentStats] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -48,6 +50,23 @@ const Dashboard = () => {
           setSummary(sumRes.data);
           setAttendance(attRes.data?.slice(0, 6) || []);
           setFeedbackReport(fbRes.data?.slice(0, 5) || []);
+        } else {
+          // Student-specific stats from real APIs
+          const [eventsRes, regsRes] = await Promise.all([
+            API.get("/events"),
+            API.get("/registrations/my"),
+          ]);
+          const allEvents = eventsRes.data || [];
+          const myRegs = regsRes.data || [];
+          const allNotifs = notiRes.data || [];
+          setStudentStats({
+            total_events: allEvents.filter((e) => e.status === "active").length,
+            my_registrations: myRegs.filter((r) => r.registration_status === "registered").length,
+            unread_notifications: allNotifs.filter((n) => !n.is_read).length,
+            upcoming: myRegs.filter(
+              (r) => r.registration_status === "registered" && new Date(r.event_date) >= new Date()
+            ).length,
+          });
         }
       } catch {
         // silently ignore
@@ -75,12 +94,25 @@ const Dashboard = () => {
         <span className={`badge badge--${user?.role}`}>{user?.role}</span>
       </div>
 
+      {/* Admin / Faculty stats */}
       {isAdminOrFaculty && summary && (
         <div className="stat-grid">
           <StatCard label="Total Events" value={summary.total_events} icon={Calendar} color="#6366f1" />
-          <StatCard label="Total Users" value={summary.total_users} icon={Users} color="#22d3ee" />
-          <StatCard label="Registrations" value={summary.total_registrations} icon={ClipboardList} color="#f59e0b" />
-          <StatCard label="Total Resources" value={summary.total_resources} icon={Star} color="#10b981" />
+          <StatCard label="Active Events" value={summary.active_events} icon={BookOpen} color="#22d3ee" />
+          <StatCard label="Total Users" value={summary.total_users} icon={Users} color="#f59e0b" />
+          <StatCard label="Registrations" value={summary.total_registrations} icon={ClipboardList} color="#10b981" />
+          <StatCard label="Total Feedback" value={summary.total_feedback} icon={Star} color="#f43f5e" />
+          <StatCard label="Resources" value={summary.total_resources} icon={BarChart2} color="#a78bfa" />
+        </div>
+      )}
+
+      {/* Student stats */}
+      {!isAdminOrFaculty && studentStats && (
+        <div className="stat-grid">
+          <StatCard label="Active Events" value={studentStats.total_events} icon={Calendar} color="#6366f1" />
+          <StatCard label="My Registrations" value={studentStats.my_registrations} icon={ClipboardList} color="#22d3ee" />
+          <StatCard label="Upcoming Events" value={studentStats.upcoming} icon={TrendingUp} color="#10b981" />
+          <StatCard label="Unread Notifications" value={studentStats.unread_notifications} icon={Bell} color="#f59e0b" />
         </div>
       )}
 

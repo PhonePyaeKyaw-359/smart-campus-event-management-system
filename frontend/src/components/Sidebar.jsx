@@ -3,18 +3,20 @@ import { NavLink, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import {
   LayoutDashboard, Calendar, ClipboardList, MessageSquare,
-  Bell, Package, BarChart2, ShieldCheck, LogOut, Menu, X, GraduationCap
+  Bell, Package, BarChart2, ShieldCheck, LogOut, Menu, X, GraduationCap, Users
 } from "lucide-react";
 
 const navItems = [
-  { to: "/dashboard",       label: "Dashboard",      icon: LayoutDashboard, roles: ["student","faculty","admin"] },
-  { to: "/events",          label: "Events",          icon: Calendar,        roles: ["student","faculty","admin"] },
-  { to: "/my-registrations",label: "My Registrations",icon: ClipboardList,   roles: ["student","faculty","admin"] },
-  { to: "/notifications",   label: "Notifications",   icon: Bell,            roles: ["student","faculty","admin"] },
-  { to: "/resources",       label: "Resources",       icon: Package,         roles: ["faculty","admin"] },
-  { to: "/reports",         label: "Reports",         icon: BarChart2,       roles: ["faculty","admin"] },
-  { to: "/feedback-admin",  label: "Feedback",        icon: MessageSquare,   roles: ["faculty","admin"] },
-  { to: "/audit-logs",      label: "Audit Logs",      icon: ShieldCheck,     roles: ["admin"] },
+  { to: "/dashboard",        label: "Dashboard",        icon: LayoutDashboard, roles: ["student","faculty","admin"] },
+  { to: "/events",           label: "Events",            icon: Calendar,        roles: ["student","faculty","admin"] },
+  { to: "/my-registrations", label: "My Registrations",  icon: ClipboardList,   roles: ["student","faculty","admin"] },
+  { to: "/notifications",    label: "Notifications",     icon: Bell,            roles: ["student","faculty","admin"] },
+  { to: "/resources",        label: "Resources",         icon: Package,         roles: ["faculty","admin"] },
+  { to: "/reports",          label: "Reports",           icon: BarChart2,       roles: ["faculty","admin"] },
+  { to: "/feedback-admin",   label: "Feedback",          icon: MessageSquare,   roles: ["faculty","admin"] },
+  { to: "/approvals",        label: "Approvals",         icon: ShieldCheck,     roles: ["faculty","admin"] },
+  { to: "/users",            label: "Users",             icon: Users,           roles: ["admin", "faculty"] },
+  { to: "/audit-logs",       label: "Audit Logs",        icon: ClipboardList,   roles: ["admin"] },
 ];
 
 const Sidebar = () => {
