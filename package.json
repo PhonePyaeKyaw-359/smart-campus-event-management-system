@@ -1,0 +1,11 @@
+{
+  "name": "smart-campus-event-management-system",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "node scripts/run-fullstack.js",
+    "start": "node scripts/run-fullstack.js",
+    "build": "npm --prefix frontend run build",
+    "serve": "npm --prefix frontend run build && node backend/server.js"
+  }
+}

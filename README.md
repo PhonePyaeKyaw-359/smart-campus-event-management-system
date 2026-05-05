@@ -82,7 +82,27 @@ Core tables:
 
 ---
 
-## 👨‍💻 Author
+## Run the Website
+
+Use one command from the project root to keep both parts alive:
+
+```bash
+npm start
+```
+
+This starts the API at `http://localhost:5000` and the website at `http://localhost:5173`.
+
+For a production-style run where the backend serves the built frontend:
+
+```bash
+npm run serve
+```
+
+Then open `http://localhost:5000`.
+
+---
+
+## Author
 
 Phone Pyae Kyaw
 

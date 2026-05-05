@@ -1,5 +1,6 @@
 const express = require("express");
 const cors = require("cors");
+const path = require("path");
 require("dotenv").config();
 
 const db = require("./config/db");
@@ -32,8 +33,17 @@ app.use("/api/users", userRoutes);
 app.use("/api/organizations", organizationRoutes);
 app.use("/api/approvals", approvalRoutes);
 
-app.get("/", (req, res) => {
+app.get("/api/health", (req, res) => {
   res.send("Smart Campus Event Management System API is running...");
+});
+
+const frontendDist = path.join(__dirname, "..", "frontend", "dist");
+app.use(express.static(frontendDist));
+app.get(/.*/, (req, res, next) => {
+  if (req.path.startsWith("/api")) return next();
+  res.sendFile(path.join(frontendDist, "index.html"), (err) => {
+    if (err) next();
+  });
 });
 
 const PORT = process.env.PORT || 5000;
