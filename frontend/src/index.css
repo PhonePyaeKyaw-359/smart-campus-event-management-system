@@ -62,8 +62,8 @@ html {
 body {
   font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   background:
-    radial-gradient(ellipse at top left, rgba(212,175,55,0.12), transparent 34rem),
-    linear-gradient(135deg, #061127 0%, #07142E 58%, #0B1E42 100%);
+    radial-gradient(ellipse at top left, rgba(212,175,55,0.14), transparent 30rem),
+    linear-gradient(180deg, #FFFFFF 0%, #F5F7FB 52%, #EEF3FA 100%);
   color: var(--text-primary);
   line-height: 1.6;
   min-height: 100vh;
@@ -388,6 +388,13 @@ input, select, textarea { font-family: inherit; }
   color: var(--text-muted);
 }
 
+.form-hint {
+  display: block;
+  margin-top: 0.3rem;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
 .form-textarea {
   min-height: 80px;
   resize: vertical;
@@ -397,6 +404,17 @@ input, select, textarea { font-family: inherit; }
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 0.75rem;
+}
+
+.event-schedule-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+  padding: 0.8rem;
+  margin-bottom: 1rem;
+  background: rgba(212,175,55,0.07);
+  border: 1px solid rgba(212,175,55,0.18);
+  border-radius: var(--radius-md);
 }
 
 .input-icon-wrap {
@@ -525,10 +543,11 @@ input, select, textarea { font-family: inherit; }
   font-size: 1.65rem;
   font-weight: 800;
   letter-spacing: -0.02em;
+  color: #07142E;
 }
 
 .page__sub {
-  color: var(--text-secondary);
+  color: #43536F;
   font-size: 0.9rem;
   margin-top: 0.15rem;
 }
@@ -555,6 +574,14 @@ input, select, textarea { font-family: inherit; }
 .badge--active     { background: rgba(52,211,153,0.16); color: #A7F3D0; }
 .badge--completed  { background: rgba(56,189,248,0.16); color: #BAE6FD; }
 .badge--pending    { background: rgba(212,175,55,0.18); color: #FDE68A; }
+.badge--pending_cancel { background: rgba(251,113,133,0.16); color: #FDA4AF; }
+.badge--pending_delete { background: rgba(251,113,133,0.22); color: #FCA5A5; }
+.badge--waiting    { background: rgba(148,163,184,0.16); color: #CBD5E1; }
+.badge--upcoming   { background: rgba(148,163,184,0.16); color: #CBD5E1; }
+.badge--available  { background: rgba(52,211,153,0.16); color: #A7F3D0; }
+.badge--closed     { background: rgba(251,113,133,0.16); color: #FDA4AF; }
+.badge--finished   { background: rgba(251,113,133,0.16); color: #FDA4AF; }
+.badge--open       { background: rgba(52,211,153,0.16); color: #A7F3D0; }
 
 /* ── Stat Cards ────────────────────────────────────────── */
 .stat-grid {
@@ -737,6 +764,12 @@ input, select, textarea { font-family: inherit; }
   gap: 0.3rem;
   font-size: 0.78rem;
   color: var(--text-muted);
+}
+
+.event-card__deadline {
+  font-size: 0.78rem;
+  color: var(--accent-indigo-hover);
+  margin: -0.25rem 0 0.8rem;
 }
 
 .event-card__actions {
@@ -1195,6 +1228,9 @@ input, select, textarea { font-family: inherit; }
     grid-template-columns: 1fr;
   }
   .form-row {
+    grid-template-columns: 1fr;
+  }
+  .event-schedule-grid {
     grid-template-columns: 1fr;
   }
   .stat-grid {

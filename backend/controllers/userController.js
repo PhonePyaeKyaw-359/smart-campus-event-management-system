@@ -2,6 +2,19 @@ const db = require("../config/db");
 const bcrypt = require("bcryptjs");
 const { createAuditLog } = require("../models/auditLogModel");
 
+const notifyAdmins = (organizationId, title, message) => {
+  const sql = `
+    INSERT INTO notifications (user_id, title, message)
+    SELECT id, ?, ?
+    FROM users
+    WHERE role = 'admin' AND organization_id = ?
+  `;
+
+  db.query(sql, [title, message, organizationId], (err) => {
+    if (err) console.error("Admin notification error:", err.message);
+  });
+};
+
 // GET all users (admin or faculty)
 const getAllUsers = (req, res) => {
   const { organization_id, department_id, role } = req.user;
@@ -26,7 +39,7 @@ const getAllUsers = (req, res) => {
 
 // POST create a user with any role (admin or faculty)
 const createUser = async (req, res) => {
-  const { full_name, email, password, role } = req.body;
+  const { full_name, email, password, role, organization_id: bodyOrgId, department_id: bodyDeptId } = req.body;
   const creatorRole = req.user.role;
   const { organization_id, department_id } = req.user;
 
@@ -43,14 +56,28 @@ const createUser = async (req, res) => {
     return res.status(403).json({ message: "Faculty can only create student accounts" });
   }
 
+  const targetOrgId = creatorRole === "admin" ? (bodyOrgId || organization_id) : organization_id;
+  const targetDeptId = role === "admin"
+    ? null
+    : creatorRole === "admin"
+      ? (bodyDeptId || null)
+      : department_id;
+
+  if (!targetOrgId) {
+    return res.status(400).json({ message: "Organization is required" });
+  }
+
+  if ((role === "student" || role === "faculty") && !targetDeptId) {
+    return res.status(400).json({ message: "Department is required for student and faculty accounts" });
+  }
+
   const status = creatorRole === 'admin' ? 'active' : 'pending_approval';
-  const targetDeptId = (role === 'student' || role === 'faculty') ? department_id : null;
 
   try {
     const hashedPassword = await bcrypt.hash(password, 10);
 
     const sql = `INSERT INTO users (full_name, email, password, role, status, organization_id, department_id) VALUES (?, ?, ?, ?, ?, ?, ?)`;
-    db.query(sql, [full_name, email, hashedPassword, role, status, organization_id, targetDeptId], (err, result) => {
+    db.query(sql, [full_name, email, hashedPassword, role, status, targetOrgId, targetDeptId], (err, result) => {
       if (err) {
         if (err.code === "ER_DUP_ENTRY") {
           return res.status(409).json({ message: "Email already exists" });
@@ -60,9 +87,17 @@ const createUser = async (req, res) => {
 
       createAuditLog(req.user.id, "CREATE_USER", `Created ${role} account: ${email} (status: ${status})`, "User", result.insertId);
 
+      if (status === "pending_approval") {
+        notifyAdmins(
+          targetOrgId,
+          "User approval needed",
+          `${req.user.full_name || "A faculty member"} created ${email}. The account is waiting for approval.`
+        );
+      }
+
       res.status(201).json({
         message: status === 'pending_approval' ? "User created and pending admin approval" : "User created successfully",
-        user: { id: result.insertId, full_name, email, role, status, organization_id, department_id: targetDeptId },
+        user: { id: result.insertId, full_name, email, role, status, organization_id: targetOrgId, department_id: targetDeptId },
       });
     });
   } catch (err) {

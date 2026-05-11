@@ -27,7 +27,16 @@ const UserManagement = () => {
   const [showModal, setShowModal] = useState(false);
   const [showRoleModal, setShowRoleModal] = useState(null); // holds the user object being role-edited
   const [newRole, setNewRole] = useState("student");
-  const [form, setForm] = useState({ full_name: "", email: "", password: "", role: "student" });
+  const [organizations, setOrganizations] = useState([]);
+  const [departments, setDepartments] = useState([]);
+  const [form, setForm] = useState({
+    full_name: "",
+    email: "",
+    password: "",
+    role: "student",
+    organization_id: me?.organization_id || "",
+    department_id: me?.department_id || "",
+  });
   const [saving, setSaving] = useState(false);
 
   const fetchUsers = async () => {
@@ -43,6 +52,24 @@ const UserManagement = () => {
 
   useEffect(() => { fetchUsers(); }, []);
 
+  useEffect(() => {
+    if (me?.role !== "admin") return;
+    API.get("/organizations")
+      .then(({ data }) => setOrganizations(data))
+      .catch(() => toast.error("Failed to load organizations"));
+  }, [me?.role]);
+
+  useEffect(() => {
+    if (me?.role !== "admin" || !form.organization_id) {
+      setDepartments([]);
+      return;
+    }
+
+    API.get(`/organizations/${form.organization_id}/departments`)
+      .then(({ data }) => setDepartments(data))
+      .catch(() => toast.error("Failed to load departments"));
+  }, [me?.role, form.organization_id]);
+
   const handleCreate = async (e) => {
     e.preventDefault();
     setSaving(true);
@@ -50,7 +77,14 @@ const UserManagement = () => {
       await API.post("/users", form);
       toast.success(`${form.role.charAt(0).toUpperCase() + form.role.slice(1)} account created!`);
       setShowModal(false);
-      setForm({ full_name: "", email: "", password: "", role: "student" });
+      setForm({
+        full_name: "",
+        email: "",
+        password: "",
+        role: "student",
+        organization_id: me?.organization_id || "",
+        department_id: me?.department_id || "",
+      });
       fetchUsers();
     } catch (err) {
       toast.error(err.response?.data?.message || "Failed to create user");
@@ -268,13 +302,51 @@ const UserManagement = () => {
                 <select
                   className="form-input"
                   value={form.role}
-                  onChange={(e) => setForm({ ...form, role: e.target.value })}
+                  onChange={(e) => setForm({
+                    ...form,
+                    role: e.target.value,
+                    department_id: e.target.value === "admin" ? "" : form.department_id,
+                  })}
                 >
                   <option value="student">Student</option>
                   <option value="faculty">Faculty</option>
                   <option value="admin">Admin</option>
                 </select>
               </div>
+              {me?.role === "admin" && (
+                <>
+                  <div className="form-group">
+                    <label className="form-label">Organization</label>
+                    <select
+                      className="form-input"
+                      value={form.organization_id}
+                      onChange={(e) => setForm({ ...form, organization_id: e.target.value, department_id: "" })}
+                      required
+                    >
+                      <option value="">Select Organization</option>
+                      {organizations.map((org) => (
+                        <option key={org.id} value={org.id}>{org.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  {form.role !== "admin" && (
+                    <div className="form-group">
+                      <label className="form-label">Department</label>
+                      <select
+                        className="form-input"
+                        value={form.department_id}
+                        onChange={(e) => setForm({ ...form, department_id: e.target.value })}
+                        required
+                      >
+                        <option value="">Select Department</option>
+                        {departments.map((dept) => (
+                          <option key={dept.id} value={dept.id}>{dept.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+                </>
+              )}
               <div className="um-role-hint">
                 {form.role === "admin" && <p>⚠️ Admin users have full access to all system features including user management.</p>}
                 {form.role === "faculty" && <p>ℹ️ Faculty users can create events, manage resources, and view reports.</p>}

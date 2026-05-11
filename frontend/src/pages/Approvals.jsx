@@ -64,6 +64,12 @@ const Approvals = () => {
             >
               Events
             </button>
+            <button
+              className={`btn ${activeTab === 'registration' ? 'btn--primary' : 'btn--outline'}`}
+              onClick={() => setActiveTab('registration')}
+            >
+              Event Registrations
+            </button>
           </>
         )}
         {isFaculty && (
@@ -101,7 +107,13 @@ const Approvals = () => {
                   <>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem' }}>
                       <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-primary)' }}>{item.title}</h3>
-                      <span className="badge badge--pending">Event</span>
+                      <span className={`badge badge--${item.status}`}>
+                        {item.status === "pending_delete"
+                          ? "Delete Request"
+                          : item.status === "pending_cancel"
+                            ? "Cancel Request"
+                            : "Event Request"}
+                      </span>
                     </div>
                     <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: '0.35rem' }}>
                       <strong style={{ color: 'var(--text-primary)' }}>Creator:</strong> {item.creator_name}

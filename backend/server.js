@@ -4,6 +4,7 @@ const path = require("path");
 require("dotenv").config();
 
 const db = require("./config/db");
+const ensureSchema = require("./config/ensureSchema");
 const authRoutes = require("./routes/authRoutes");
 const eventRoutes = require("./routes/eventRoutes");
 const registrationRoutes = require("./routes/registrationRoutes");
@@ -17,6 +18,7 @@ const reportRoutes = require("./routes/reportRoutes");
 const userRoutes = require("./routes/userRoutes");
 
 const app = express();
+ensureSchema();
 
 app.use(cors());
 app.use(express.json());

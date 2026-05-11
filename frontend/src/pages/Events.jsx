@@ -7,8 +7,82 @@ import {
   Calendar, MapPin, Clock, Search, Plus, Edit2, Trash2, X, Users, Star, CheckCircle
 } from "lucide-react";
 
+const getEventPhase = (event) => {
+  if (event.event_phase) return event.event_phase;
+  if (!event.event_date) return "upcoming";
+
+  const now = new Date();
+  const eventStart = new Date(`${toDateInput(event.event_date)}T${toTimeInput(event.event_time)}`);
+  const eventEnd = new Date(`${toDateInput(event.event_date)}T${toTimeInput(event.event_end_time || event.event_time)}`);
+
+  if (now < eventStart) return "upcoming";
+  if (now > eventEnd) return "finished";
+  return "available";
+};
+
+const getPhaseLabel = (phase) => {
+  if (phase === "upcoming") return "Upcoming";
+  if (phase === "available") return "Available";
+  if (phase === "finished") return "Finished";
+  return phase;
+};
+
+const toDateInput = (value) => {
+  if (!value) return "";
+  if (typeof value === "string") return value.split("T")[0];
+  const date = new Date(value);
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+
+const toTimeInput = (value) => (value ? value.slice(0, 5) : "");
+
+const formatDate = (value) => {
+  if (!value) return "TBD";
+  return new Intl.DateTimeFormat("en-GB", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  }).format(new Date(value));
+};
+
+const formatDateTime = (value) => {
+  if (!value) return "TBD";
+  return new Intl.DateTimeFormat("en-GB", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(new Date(value));
+};
+
+const toDateTimeInput = (value) => {
+  if (!value) return "";
+  if (typeof value === "string" && !value.endsWith("Z")) {
+    return value.replace(" ", "T").slice(0, 16);
+  }
+
+  const date = new Date(value);
+  const offsetDate = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
+  return offsetDate.toISOString().slice(0, 16);
+};
+
+const toSqlTime = (value) => {
+  if (!value) return "";
+  return value.length === 5 ? `${value}:00` : value;
+};
+
+const addHours = (date, hours) => {
+  const next = new Date(date);
+  next.setHours(next.getHours() + hours);
+  return next;
+};
+
 const Events = () => {
-  const { user, isAdminOrFaculty } = useAuth();
+  const { isAdminOrFaculty } = useAuth();
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -18,27 +92,17 @@ const Events = () => {
   const [feedbackForm, setFeedbackForm] = useState({ rating: 5, comment: "" });
   const [registeringId, setRegisteringId] = useState(null);
   const [form, setForm] = useState({
-    title: "", description: "", event_date: "", event_time: "", location: "", capacity: ""
+    title: "",
+    description: "",
+    event_date: "",
+    event_time: "",
+    event_end_time: "",
+    registration_deadline: "",
+    registration_status: "open",
+    visibility: "department",
+    location: "",
+    capacity: ""
   });
-
-  const [dateYear, setDateYear] = useState(new Date().getFullYear().toString());
-  const [dateMonth, setDateMonth] = useState("01");
-  const [dateDay, setDateDay] = useState("01");
-
-  const [timeHour, setTimeHour] = useState("12");
-  const [timeMin, setTimeMin] = useState("00");
-  const [timeAmPm, setTimeAmPm] = useState("AM");
-
-  useEffect(() => {
-    setForm(f => ({ ...f, event_date: `${dateYear}-${dateMonth.padStart(2, '0')}-${dateDay.padStart(2, '0')}` }));
-  }, [dateYear, dateMonth, dateDay]);
-
-  useEffect(() => {
-    let h = parseInt(timeHour, 10);
-    if (timeAmPm === "PM" && h !== 12) h += 12;
-    if (timeAmPm === "AM" && h === 12) h = 0;
-    setForm(f => ({ ...f, event_time: `${h.toString().padStart(2, '0')}:${timeMin.padStart(2, '0')}:00` }));
-  }, [timeHour, timeMin, timeAmPm]);
 
   const fetchEvents = async () => {
     try {
@@ -55,14 +119,23 @@ const Events = () => {
 
   const openCreate = () => {
     setEditing(null);
-    setForm({ title: "", description: "", event_date: "", event_time: "", location: "", capacity: "" });
     const now = new Date();
-    setDateYear(now.getFullYear().toString());
-    setDateMonth((now.getMonth() + 1).toString().padStart(2, '0'));
-    setDateDay(now.getDate().toString().padStart(2, '0'));
-    setTimeHour("12");
-    setTimeMin("00");
-    setTimeAmPm("PM");
+    const eventStart = addHours(now, 24);
+    eventStart.setMinutes(0, 0, 0);
+    const eventEnd = addHours(eventStart, 2);
+    const deadline = addHours(eventStart, -2);
+    setForm({
+      title: "",
+      description: "",
+      event_date: toDateInput(eventStart),
+      event_time: toTimeInput(eventStart.toTimeString()),
+      event_end_time: toTimeInput(eventEnd.toTimeString()),
+      registration_deadline: toDateTimeInput(deadline),
+      registration_status: "open",
+      visibility: "department",
+      location: "",
+      capacity: ""
+    });
     setShowModal(true);
   };
 
@@ -71,40 +144,34 @@ const Events = () => {
     setForm({
       title: ev.title,
       description: ev.description || "",
-      event_date: ev.event_date?.split("T")[0] || "",
-      event_time: ev.event_time || "",
+      event_date: toDateInput(ev.event_date),
+      event_time: toTimeInput(ev.event_time),
+      event_end_time: toTimeInput(ev.event_end_time || ev.event_time),
+      registration_deadline: toDateTimeInput(ev.registration_deadline),
+      registration_status: ev.registration_status || "open",
+      visibility: ev.visibility || "department",
       location: ev.location || "",
-      capacity: ev.capacity || ""
+      capacity: ev.capacity || "",
+      status: ev.status || "active"
     });
-
-    if (ev.event_date) {
-      const [y, m, d] = ev.event_date.split("T")[0].split("-");
-      if (y && m && d) {
-        setDateYear(y); setDateMonth(m); setDateDay(d);
-      }
-    }
-    if (ev.event_time) {
-      const [hStr, mStr] = ev.event_time.split(":");
-      let h = parseInt(hStr, 10);
-      const ampm = h >= 12 ? "PM" : "AM";
-      if (h > 12) h -= 12;
-      if (h === 0) h = 12;
-      setTimeHour(h.toString());
-      setTimeMin(mStr);
-      setTimeAmPm(ampm);
-    }
     
     setShowModal(true);
   };
 
   const handleSave = async (e) => {
     e.preventDefault();
+    const payload = {
+      ...form,
+      event_time: toSqlTime(form.event_time),
+      event_end_time: toSqlTime(form.event_end_time),
+    };
+
     try {
       if (editing) {
-        await API.put(`/events/${editing.id}`, form);
+        await API.put(`/events/${editing.id}`, payload);
         toast.success("Event updated");
       } else {
-        await API.post("/events", form);
+        await API.post("/events", payload);
         toast.success("Event created! A notification has been sent to all users.");
       }
       setShowModal(false);
@@ -125,16 +192,34 @@ const Events = () => {
     }
   };
 
+  const handleCancelEvent = async (ev) => {
+    if (!confirm(`Cancel event "${ev.title}"?`)) return;
+    try {
+      await API.put(`/events/${ev.id}`, {
+        ...ev,
+        event_date: toDateInput(ev.event_date),
+        event_time: toSqlTime(toTimeInput(ev.event_time)),
+        event_end_time: toSqlTime(toTimeInput(ev.event_end_time || ev.event_time)),
+        registration_deadline: toDateTimeInput(ev.registration_deadline),
+        status: "cancelled",
+      });
+      toast.success("Event cancellation submitted");
+      fetchEvents();
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to cancel event");
+    }
+  };
+
   const handleRegister = async (eventId) => {
     setRegisteringId(eventId);
     try {
       await API.post("/registrations", { event_id: eventId });
-      toast.success("Registered successfully!");
+      toast.success("Registration submitted for approval");
       // Optimistically update local state — no need to refetch
       setEvents((prev) =>
         prev.map((ev) =>
           ev.id === eventId
-            ? { ...ev, user_registered: 1, registered_count: (ev.registered_count || 0) + 1 }
+            ? { ...ev, user_registered: 1, user_registration_status: "pending" }
             : ev
         )
       );
@@ -199,7 +284,12 @@ const Events = () => {
           {filtered.map((ev) => {
             const isFull = ev.registered_count >= ev.capacity;
             const isCancelled = ev.status === "cancelled";
-            const alreadyRegistered = !!ev.user_registered;
+            const eventPhase = getEventPhase(ev);
+            const alreadyRegistered = ["pending", "registered"].includes(ev.user_registration_status);
+            const isApprovedRegistration = ev.user_registration_status === "registered";
+            const registrationOpen = Number(ev.registration_open) === 1;
+            const canRegister = ev.status === "active" && registrationOpen && !alreadyRegistered && !isFull;
+            const canGiveFeedback = ev.status === "active" && eventPhase === "finished" && isApprovedRegistration;
             const fillPercent = ev.capacity ? Math.min(100, Math.round((ev.registered_count / ev.capacity) * 100)) : 0;
 
             return (
@@ -211,13 +301,28 @@ const Events = () => {
                       {ev.status === 'pending' ? 'Pending Approval' : ev.status.charAt(0).toUpperCase() + ev.status.slice(1)}
                     </span>
                   )}
+                  {ev.status === "active" && (
+                    <span className={`badge badge--${eventPhase}`}>
+                      {getPhaseLabel(eventPhase)}
+                    </span>
+                  )}
+                  {ev.status === "active" && (
+                    <span className={`badge badge--${registrationOpen ? "open" : "closed"}`}>
+                      Registration {registrationOpen ? "Open" : "Closed"}
+                    </span>
+                  )}
                 </div>
                 <p className="event-card__desc">{ev.description}</p>
                 <div className="event-card__meta">
-                  <span><Calendar size={14} /> {ev.event_date ? new Date(ev.event_date).toLocaleDateString() : "TBD"}</span>
-                  <span><Clock size={14} /> {ev.event_time || "TBD"}</span>
+                  <span><Calendar size={14} /> {formatDate(ev.event_date)}</span>
+                  <span><Clock size={14} /> {toTimeInput(ev.event_time) || "TBD"} - {toTimeInput(ev.event_end_time) || "TBD"}</span>
                   <span><MapPin size={14} /> {ev.location || "TBD"}</span>
                 </div>
+                {ev.registration_deadline && (
+                  <p className="event-card__deadline">
+                    Registration due {formatDateTime(ev.registration_deadline)}
+                  </p>
+                )}
 
                 {/* Capacity Progress Bar */}
                 {ev.capacity && (
@@ -237,23 +342,34 @@ const Events = () => {
                 )}
 
                 <div className="event-card__actions">
-                  {ev.status === 'active' && (
+                  {ev.status === "active" && eventPhase !== "finished" && (
                     alreadyRegistered ? (
                       <span className="btn btn--sm btn--registered" disabled>
-                        <CheckCircle size={14} /> Registered
+                        <CheckCircle size={14} />
+                        {ev.user_registration_status === "pending" ? "Waiting Approval" : "Registered"}
+                      </span>
+                    ) : !registrationOpen ? (
+                      <span className="btn btn--sm btn--outline" disabled>
+                        Registration Closed
                       </span>
                     ) : (
                       <button
                         className="btn btn--sm btn--accent"
                         onClick={() => handleRegister(ev.id)}
-                        disabled={isFull || registeringId === ev.id}
+                        disabled={!canRegister || registeringId === ev.id}
                       >
                         {registeringId === ev.id ? "Registering..." : isFull ? "Full" : "Register"}
                       </button>
                     )
                   )}
 
-                  {alreadyRegistered && ev.status === 'active' && (
+                  {ev.status === "active" && eventPhase === "finished" && (
+                    <span className="btn btn--sm btn--outline" disabled>
+                      Finished
+                    </span>
+                  )}
+
+                  {canGiveFeedback && (
                     <button
                       className="btn btn--sm btn--outline"
                       onClick={() => { setShowFeedback(ev); setFeedbackForm({ rating: 5, comment: "" }); }}
@@ -264,6 +380,11 @@ const Events = () => {
 
                   {isAdminOrFaculty && (
                     <>
+                      {ev.status === "active" && (
+                        <button className="btn btn--sm btn--outline" onClick={() => handleCancelEvent(ev)}>
+                          Cancel Event
+                        </button>
+                      )}
                       <button className="btn btn--sm btn--ghost" onClick={() => openEdit(ev)}>
                         <Edit2 size={14} />
                       </button>
@@ -296,47 +417,50 @@ const Events = () => {
                 <label className="form-label">Description</label>
                 <textarea className="form-input form-textarea" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
               </div>
-              <div className="form-row">
-                <div className="form-group" style={{ gridColumn: '1 / -1' }}>
-                  <label className="form-label">Date</label>
-                  <div style={{ display: 'flex', gap: '0.5rem' }}>
-                    <select className="form-input" value={dateMonth} onChange={(e) => setDateMonth(e.target.value)}>
-                      {Array.from({length: 12}, (_, i) => i + 1).map(m => (
-                        <option key={m} value={m.toString().padStart(2, '0')}>{new Date(2000, m - 1, 1).toLocaleString('default', { month: 'long' })}</option>
-                      ))}
-                    </select>
-                    <select className="form-input" value={dateDay} onChange={(e) => setDateDay(e.target.value)}>
-                      {Array.from({length: 31}, (_, i) => i + 1).map(d => (
-                        <option key={d} value={d.toString().padStart(2, '0')}>{d}</option>
-                      ))}
-                    </select>
-                    <select className="form-input" value={dateYear} onChange={(e) => setDateYear(e.target.value)}>
-                      {[0, 1, 2, 3, 4].map(yOffset => {
-                        const y = new Date().getFullYear() + yOffset;
-                        return <option key={y} value={y}>{y}</option>;
-                      })}
-                    </select>
-                  </div>
+              <div className="event-schedule-grid">
+                <div className="form-group">
+                  <label className="form-label">Event Date</label>
+                  <input
+                    className="form-input"
+                    type="date"
+                    value={form.event_date}
+                    onChange={(e) => setForm({ ...form, event_date: e.target.value })}
+                    required
+                  />
+                  <span className="form-hint">{form.event_date ? formatDate(form.event_date) : "DD/MM/YYYY"}</span>
                 </div>
-                <div className="form-group" style={{ gridColumn: '1 / -1' }}>
-                  <label className="form-label">Time</label>
-                  <div style={{ display: 'flex', gap: '0.5rem' }}>
-                    <select className="form-input" value={timeHour} onChange={(e) => setTimeHour(e.target.value)}>
-                      {Array.from({length: 12}, (_, i) => i + 1).map(h => (
-                        <option key={h} value={h}>{h}</option>
-                      ))}
-                    </select>
-                    <span style={{ display: 'flex', alignItems: 'center', fontWeight: 'bold' }}>:</span>
-                    <select className="form-input" value={timeMin} onChange={(e) => setTimeMin(e.target.value)}>
-                      {['00', '15', '30', '45'].map(m => (
-                        <option key={m} value={m}>{m}</option>
-                      ))}
-                    </select>
-                    <select className="form-input" value={timeAmPm} onChange={(e) => setTimeAmPm(e.target.value)}>
-                      <option value="AM">AM</option>
-                      <option value="PM">PM</option>
-                    </select>
-                  </div>
+                <div className="form-group">
+                  <label className="form-label">Start Time</label>
+                  <input
+                    className="form-input"
+                    type="time"
+                    value={form.event_time}
+                    onChange={(e) => setForm({ ...form, event_time: e.target.value })}
+                    required
+                  />
+                  <span className="form-hint">When the event begins</span>
+                </div>
+                <div className="form-group">
+                  <label className="form-label">End Time</label>
+                  <input
+                    className="form-input"
+                    type="time"
+                    value={form.event_end_time}
+                    onChange={(e) => setForm({ ...form, event_end_time: e.target.value })}
+                    required
+                  />
+                  <span className="form-hint">After this, feedback opens</span>
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Registration Due</label>
+                  <input
+                    className="form-input"
+                    type="datetime-local"
+                    value={form.registration_deadline}
+                    onChange={(e) => setForm({ ...form, registration_deadline: e.target.value })}
+                    required
+                  />
+                  <span className="form-hint">{form.registration_deadline ? formatDateTime(form.registration_deadline) : "DD/MM/YYYY, time"}</span>
                 </div>
               </div>
               <div className="form-row">
@@ -349,13 +473,36 @@ const Events = () => {
                   <input className="form-input" type="number" value={form.capacity} onChange={(e) => setForm({ ...form, capacity: e.target.value })} required />
                 </div>
               </div>
+              <div className="form-group">
+                <label className="form-label">Audience</label>
+                <select
+                  className="form-input"
+                  value={form.visibility || "department"}
+                  onChange={(e) => setForm({ ...form, visibility: e.target.value })}
+                >
+                  <option value="department">Own Department</option>
+                  <option value="public">All Departments</option>
+                </select>
+                <span className="form-hint">
+                  Own Department is private to your department. All Departments makes it visible to students across the organization.
+                </span>
+              </div>
               {editing && (
-                <div className="form-group">
-                  <label className="form-label">Status</label>
-                  <select className="form-input" value={form.status || "active"} onChange={(e) => setForm({ ...form, status: e.target.value })}>
-                    <option value="active">Active</option>
-                    <option value="cancelled">Cancelled</option>
-                  </select>
+                <div className="form-row">
+                  <div className="form-group">
+                    <label className="form-label">Event Status</label>
+                    <select className="form-input" value={form.status || "active"} onChange={(e) => setForm({ ...form, status: e.target.value })}>
+                      <option value="active">Active</option>
+                      <option value="cancelled">Cancelled</option>
+                    </select>
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Registration Status</label>
+                    <select className="form-input" value={form.registration_status || "open"} onChange={(e) => setForm({ ...form, registration_status: e.target.value })}>
+                      <option value="open">Open</option>
+                      <option value="closed">Closed</option>
+                    </select>
+                  </div>
                 </div>
               )}
               <div className="modal__footer">

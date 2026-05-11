@@ -1,5 +1,16 @@
 const db = require("../config/db");
 
+const toDateOnly = (value) => {
+  if (value instanceof Date) {
+    const year = value.getFullYear();
+    const month = String(value.getMonth() + 1).padStart(2, "0");
+    const day = String(value.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  }
+
+  return String(value).split("T")[0];
+};
+
 const registerForEvent = (req, res) => {
   const { event_id } = req.body;
   const user_id = req.user.id;
@@ -34,6 +45,27 @@ const registerForEvent = (req, res) => {
       });
     }
 
+    if (event.status !== "active") {
+      return res.status(400).json({
+        message: "This event is not open for registration",
+      });
+    }
+
+    const now = new Date();
+    const registrationDeadline = event.registration_deadline ? new Date(event.registration_deadline) : null;
+
+    if (event.registration_status === "closed") {
+      return res.status(400).json({
+        message: "Registration is closed for this event",
+      });
+    }
+
+    if (!registrationDeadline || now > registrationDeadline) {
+      return res.status(400).json({
+        message: "Registration deadline has passed",
+      });
+    }
+
     const countSql = `
       SELECT COUNT(*) AS total 
       FROM registrations 
@@ -56,28 +88,69 @@ const registerForEvent = (req, res) => {
         });
       }
 
-      const insertSql = `
-        INSERT INTO registrations (user_id, event_id)
-        VALUES (?, ?)
+      const existingSql = `
+        SELECT id, status
+        FROM registrations
+        WHERE user_id = ? AND event_id = ?
       `;
 
-      db.query(insertSql, [user_id, event_id], (err, result) => {
+      db.query(existingSql, [user_id, event_id], (err, existingResults) => {
         if (err) {
-          if (err.code === "ER_DUP_ENTRY") {
-            return res.status(409).json({
-              message: "You are already registered for this event",
-            });
-          }
-
           return res.status(500).json({
             message: "Database error",
             error: err.message,
           });
         }
 
-        res.status(201).json({
-          message: "Registration submitted and pending faculty approval",
-          registrationId: result.insertId,
+        const existing = existingResults[0];
+
+        if (existing && ["pending", "registered"].includes(existing.status)) {
+          return res.status(409).json({
+            message: existing.status === "pending"
+              ? "Your registration is waiting for approval"
+              : "You are already registered for this event",
+          });
+        }
+
+        if (existing) {
+          const updateSql = `
+            UPDATE registrations
+            SET status = 'pending', registered_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+          `;
+
+          return db.query(updateSql, [existing.id], (err) => {
+            if (err) {
+              return res.status(500).json({
+                message: "Database error",
+                error: err.message,
+              });
+            }
+
+            res.status(200).json({
+              message: "Registration submitted and pending faculty approval",
+              registrationId: existing.id,
+            });
+          });
+        }
+
+        const insertSql = `
+          INSERT INTO registrations (user_id, event_id)
+          VALUES (?, ?)
+        `;
+
+        db.query(insertSql, [user_id, event_id], (err, result) => {
+          if (err) {
+            return res.status(500).json({
+              message: "Database error",
+              error: err.message,
+            });
+          }
+
+          res.status(201).json({
+            message: "Registration submitted and pending faculty approval",
+            registrationId: result.insertId,
+          });
         });
       });
     });
