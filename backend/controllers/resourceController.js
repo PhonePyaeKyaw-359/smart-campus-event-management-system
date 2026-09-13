@@ -11,13 +11,13 @@ const createResource = (req, res) => {
   }
 
   const sql = `
-    INSERT INTO resources (name, type, description, availability_status)
-    VALUES (?, ?, ?, ?)
+    INSERT INTO resources (organization_id, name, type, description, availability_status)
+    VALUES (?, ?, ?, ?, ?)
   `;
 
   db.query(
     sql,
-    [name, type, description, availability_status || "available"],
+    [req.user.organization_id, name, type, description, availability_status || "available"],
     (err, result) => {
       if (err) {
         return res.status(500).json({
@@ -43,9 +43,9 @@ const createResource = (req, res) => {
 };
 
 const getAllResources = (req, res) => {
-  const sql = "SELECT * FROM resources ORDER BY created_at DESC";
+  const sql = "SELECT * FROM resources WHERE organization_id = ? ORDER BY created_at DESC";
 
-  db.query(sql, (err, results) => {
+  db.query(sql, [req.user.organization_id], (err, results) => {
     if (err) {
       return res.status(500).json({
         message: "Database error",
@@ -64,12 +64,12 @@ const updateResource = (req, res) => {
   const sql = `
     UPDATE resources
     SET name = ?, type = ?, description = ?, availability_status = ?
-    WHERE id = ?
+    WHERE id = ? AND organization_id = ?
   `;
 
   db.query(
     sql,
-    [name, type, description, availability_status || "available", id],
+    [name, type, description, availability_status || "available", id, req.user.organization_id],
     (err, result) => {
       if (err) {
         return res.status(500).json({
@@ -102,9 +102,9 @@ const updateResource = (req, res) => {
 const deleteResource = (req, res) => {
   const { id } = req.params;
 
-  const sql = "DELETE FROM resources WHERE id = ?";
+  const sql = "DELETE FROM resources WHERE id = ? AND organization_id = ?";
 
-  db.query(sql, [id], (err, result) => {
+  db.query(sql, [id, req.user.organization_id], (err, result) => {
     if (err) {
       return res.status(500).json({
         message: "Database error",
@@ -143,10 +143,13 @@ const assignResourceToEvent = (req, res) => {
 
   const sql = `
     INSERT INTO event_resources (event_id, resource_id)
-    VALUES (?, ?)
+    SELECT ?, ?
+    FROM events e
+    JOIN resources r ON r.id = ?
+    WHERE e.id = ? AND e.organization_id = ? AND r.organization_id = ?
   `;
 
-  db.query(sql, [event_id, resource_id], (err, result) => {
+  db.query(sql, [event_id, resource_id, resource_id, event_id, req.user.organization_id, req.user.organization_id], (err, result) => {
     if (err) {
       if (err.code === "ER_DUP_ENTRY") {
         return res.status(409).json({
@@ -157,6 +160,12 @@ const assignResourceToEvent = (req, res) => {
       return res.status(500).json({
         message: "Database error",
         error: err.message,
+      });
+    }
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({
+        message: "Event or resource not found in your organization",
       });
     }
 
@@ -189,11 +198,12 @@ const getEventResources = (req, res) => {
       event_resources.assigned_at
     FROM event_resources
     JOIN resources ON event_resources.resource_id = resources.id
-    WHERE event_resources.event_id = ?
+    JOIN events ON event_resources.event_id = events.id
+    WHERE event_resources.event_id = ? AND events.organization_id = ?
     ORDER BY event_resources.assigned_at DESC
   `;
 
-  db.query(sql, [eventId], (err, results) => {
+  db.query(sql, [eventId, req.user.organization_id], (err, results) => {
     if (err) {
       return res.status(500).json({
         message: "Database error",
@@ -208,9 +218,14 @@ const getEventResources = (req, res) => {
 const removeResourceFromEvent = (req, res) => {
   const { assignmentId } = req.params;
 
-  const sql = "DELETE FROM event_resources WHERE id = ?";
+  const sql = `
+    DELETE event_resources
+    FROM event_resources
+    JOIN resources ON event_resources.resource_id = resources.id
+    WHERE event_resources.id = ? AND resources.organization_id = ?
+  `;
 
-  db.query(sql, [assignmentId], (err, result) => {
+  db.query(sql, [assignmentId, req.user.organization_id], (err, result) => {
     if (err) {
       return res.status(500).json({
         message: "Database error",

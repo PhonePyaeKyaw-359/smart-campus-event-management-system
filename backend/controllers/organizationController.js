@@ -26,8 +26,18 @@ const setOrganizationAndDepartment = (req, res) => {
     return res.status(400).json({ message: "Organization ID is required" });
   }
 
-  const sql = "UPDATE users SET organization_id = ?, department_id = ? WHERE id = ?";
-  db.query(sql, [organization_id, department_id || null, userId], (err, result) => {
+  const organizationSql = "SELECT id FROM organizations WHERE id = ?";
+  db.query(organizationSql, [organization_id], (organizationErr, organizations) => {
+    if (organizationErr) return res.status(500).json({ message: "Database error" });
+    if (organizations.length === 0) return res.status(400).json({ message: "Organization not found" });
+
+    const departmentSql = department_id
+      ? "SELECT id FROM departments WHERE id = ? AND organization_id = ?"
+      : null;
+
+    const saveProfile = () => {
+      const sql = "UPDATE users SET organization_id = ?, department_id = ? WHERE id = ?";
+      db.query(sql, [organization_id, department_id || null, userId], (err) => {
     if (err) return res.status(500).json({ message: "Database error", error: err.message });
     
     // Fetch updated user to return new state
@@ -47,6 +57,16 @@ const setOrganizationAndDepartment = (req, res) => {
       );
 
       res.status(200).json({ message: "Organization set successfully", user: updatedUser, token });
+    });
+      });
+    };
+
+    if (!departmentSql) return saveProfile();
+
+    db.query(departmentSql, [department_id, organization_id], (departmentErr, departments) => {
+      if (departmentErr) return res.status(500).json({ message: "Database error" });
+      if (departments.length === 0) return res.status(400).json({ message: "Department does not belong to this organization" });
+      saveProfile();
     });
   });
 };

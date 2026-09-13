@@ -232,9 +232,9 @@ const getAllEvents = (req, res) => {
 const getEventById = (req, res) => {
   const { id } = req.params;
 
-  const sql = "SELECT * FROM events WHERE id = ?";
+  const sql = "SELECT * FROM events WHERE id = ? AND organization_id = ?";
 
-  db.query(sql, [id], (err, results) => {
+  db.query(sql, [id, req.user.organization_id], (err, results) => {
     if (err) {
       return res.status(500).json({
         message: "Database error",
@@ -276,7 +276,7 @@ const updateEvent = (req, res) => {
   const sql = `
     UPDATE events
     SET title = ?, description = ?, event_date = ?, event_time = ?, event_end_time = ?, registration_deadline = ?, registration_status = ?, visibility = ?, location = ?, capacity = ?, status = ?
-    WHERE id = ?
+    WHERE id = ? AND organization_id = ?${req.user.role === "faculty" ? " AND created_by = ?" : ""}
   `;
 
   db.query(
@@ -294,6 +294,8 @@ const updateEvent = (req, res) => {
       capacity,
       nextStatus,
       id,
+      req.user.organization_id,
+      ...(req.user.role === "faculty" ? [req.user.id] : []),
     ],
     (err, result) => {
       if (err) {
@@ -380,9 +382,9 @@ const deleteEvent = (req, res) => {
     });
   }
 
-  const sql = "DELETE FROM events WHERE id = ?";
+  const sql = "DELETE FROM events WHERE id = ? AND organization_id = ?";
 
-  db.query(sql, [id], (err, result) => {
+  db.query(sql, [id, req.user.organization_id], (err, result) => {
     if (err) {
       return res.status(500).json({
         message: "Database error",

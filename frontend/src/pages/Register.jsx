@@ -8,7 +8,7 @@ import { GraduationCap, User, Mail, Lock } from "lucide-react";
 const Register = () => {
   const { login } = useAuth();
   const navigate = useNavigate();
-  const [form, setForm] = useState({ full_name: "", email: "", password: "", role: "student" });
+  const [form, setForm] = useState({ full_name: "", email: "", password: "" });
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e) => {
@@ -88,20 +88,6 @@ const Register = () => {
                 required
               />
             </div>
-          </div>
-
-          <div className="form-group">
-            <label className="form-label">Role</label>
-            <select
-              id="reg-role"
-              className="form-input"
-              value={form.role}
-              onChange={(e) => setForm({ ...form, role: e.target.value })}
-            >
-              <option value="student">Student</option>
-              <option value="faculty">Faculty</option>
-              <option value="admin">Admin</option>
-            </select>
           </div>
 
           <button id="reg-submit" className="btn btn--primary btn--full" disabled={loading}>

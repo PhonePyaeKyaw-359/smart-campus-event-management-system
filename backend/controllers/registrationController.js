@@ -21,9 +21,9 @@ const registerForEvent = (req, res) => {
     });
   }
 
-  const eventSql = "SELECT * FROM events WHERE id = ?";
+  const eventSql = "SELECT * FROM events WHERE id = ? AND organization_id = ?";
 
-  db.query(eventSql, [event_id], (err, eventResults) => {
+  db.query(eventSql, [event_id, req.user.organization_id], (err, eventResults) => {
     if (err) {
       return res.status(500).json({
         message: "Database error",

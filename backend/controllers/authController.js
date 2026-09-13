@@ -3,7 +3,7 @@ const jwt = require("jsonwebtoken");
 const db = require("../config/db");
 
 const registerUser = async (req, res) => {
-  const { full_name, email, password, role } = req.body;
+  const { full_name, email, password } = req.body;
 
   if (!full_name || !email || !password) {
     return res.status(400).json({
@@ -14,8 +14,9 @@ const registerUser = async (req, res) => {
   try {
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    const validRoles = ["student", "faculty", "admin"];
-    const userRole = validRoles.includes(role) ? role : "student";
+    // Public registration must never grant elevated privileges. Faculty and
+    // administrator accounts are created by an administrator from the UI.
+    const userRole = "student";
 
     const sql = `
       INSERT INTO users (full_name, email, password, role)

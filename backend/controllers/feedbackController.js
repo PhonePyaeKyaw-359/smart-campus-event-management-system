@@ -32,10 +32,10 @@ const submitFeedback = (req, res) => {
     FROM events e
     LEFT JOIN registrations r
       ON r.event_id = e.id AND r.user_id = ?
-    WHERE e.id = ?
+    WHERE e.id = ? AND e.organization_id = ?
   `;
 
-  db.query(eventSql, [user_id, event_id], (err, eventResults) => {
+  db.query(eventSql, [user_id, event_id, req.user.organization_id], (err, eventResults) => {
     if (err) {
       return res.status(500).json({
         message: "Database error",

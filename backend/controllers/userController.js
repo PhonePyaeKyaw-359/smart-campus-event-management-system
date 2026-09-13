@@ -22,10 +22,10 @@ const getAllUsers = (req, res) => {
   let params = [];
 
   if (role === "admin") {
-    sql = `SELECT * FROM users WHERE organization_id = ? ORDER BY created_at DESC`;
+    sql = `SELECT id, full_name, email, role, status, organization_id, department_id, created_at FROM users WHERE organization_id = ? ORDER BY created_at DESC`;
     params = [organization_id];
   } else if (role === "faculty") {
-    sql = `SELECT * FROM users WHERE organization_id = ? AND department_id = ? AND role = 'student' ORDER BY created_at DESC`;
+    sql = `SELECT id, full_name, email, role, status, organization_id, department_id, created_at FROM users WHERE organization_id = ? AND department_id = ? AND role = 'student' ORDER BY created_at DESC`;
     params = [organization_id, department_id];
   } else {
     return res.status(403).json({ message: "Unauthorized" });
@@ -120,8 +120,8 @@ const updateUserRole = (req, res) => {
     return res.status(400).json({ message: "You cannot change your own role" });
   }
 
-  const sql = `UPDATE users SET role = ? WHERE id = ?`;
-  db.query(sql, [role, id], (err, result) => {
+  const sql = `UPDATE users SET role = ? WHERE id = ? AND organization_id = ?`;
+  db.query(sql, [role, id, req.user.organization_id], (err, result) => {
     if (err) return res.status(500).json({ message: "Database error", error: err.message });
     if (result.affectedRows === 0) return res.status(404).json({ message: "User not found" });
 
@@ -139,8 +139,8 @@ const deleteUser = (req, res) => {
     return res.status(400).json({ message: "You cannot delete your own account" });
   }
 
-  const sql = `DELETE FROM users WHERE id = ?`;
-  db.query(sql, [id], (err, result) => {
+  const sql = `DELETE FROM users WHERE id = ? AND organization_id = ?`;
+  db.query(sql, [id, req.user.organization_id], (err, result) => {
     if (err) return res.status(500).json({ message: "Database error", error: err.message });
     if (result.affectedRows === 0) return res.status(404).json({ message: "User not found" });
 
